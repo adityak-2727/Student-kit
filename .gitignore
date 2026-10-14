@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+dist/
+coverage/
+test-results/
+playwright-report/
+.env*
+!.env.example
+*.tsbuildinfo
+*.log
+.pnpm-store/
+.local-tools/
+.fresh-install/
+.DS_Store
+Thumbs.db

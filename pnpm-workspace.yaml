@@ -1,0 +1,7 @@
+# pnpm 12 reads non-auth settings here; this is one application package.
+saveExact: true
+engineStrict: true
+strictPeerDependencies: true
+verifyDepsBeforeRun: error
+allowBuilds:
+  unrs-resolver@1.12.2: true
