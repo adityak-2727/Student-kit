@@ -1,6 +1,6 @@
 # Setup and deployment runbook
 
-The public application foundation is implemented. Authentication, encrypted database persistence, migrations, containers and deployment remain future work. Sections below distinguish commands that run now from the later infrastructure setup. Follow the twelve phases in `PHASES.md`; see `STATUS.md` for actual evidence.
+The public foundation and responsive visual shell are implemented. The shell's synthetic entry point is development-only. Authentication, encrypted database persistence, migrations, containers and deployment remain future work. Sections below distinguish commands that run now from later setup. Follow the twelve phases in `PHASES.md`; see `STATUS.md` for actual evidence.
 
 ## Run the current build
 
@@ -13,6 +13,8 @@ npx --yes pnpm@12.11.2 dev
 
 Open `http://127.0.0.1:3000`. No external credentials or `.env.local` are required for this public development preview. It cannot sign in, save records, award XP, or create accounts. Copy `.env.example` to untracked `.env.local` only if preparing integration settings; leave `APP_MODE=foundation` and `ENABLE_TEST_AUTH=false`. Next.js sets `NODE_ENV`; do not set it in the copied file.
 
+In development, `http://127.0.0.1:3000/dev/shell` displays the synthetic workspace. Every sample value is labelled. Edits live only in React memory until refresh; they never call an account/data API, earn rewards or simulate provider success. The server rejects the route before fixture imports unless `NODE_ENV=development`; production builds return 404 even with fixture/demo query parameters. The homepage links to it only during development. This route does not authenticate anyone.
+
 These check commands are implemented:
 
 ```powershell
@@ -23,12 +25,15 @@ pnpm test:unit
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
+pnpm test:shell
 pnpm audit
 pnpm audit:production
 pnpm start
 ```
 
 `test:e2e` requires `build` first and starts its own local production server; stop any server using port 3000 first. It refuses to reuse an unknown or development server as production evidence. Screenshots go to `docs/evidence/`. `start` opens the same built app at port 3000; stop an existing local server before starting another. `dev`/`start` bind to loopback for local use; a future container will need an explicit host binding.
+
+`test:shell` starts a separate development server at `127.0.0.1:3100`; stop any server using that port first. The suite inspects the shell at seven CSS widths, native keyboard events, focus trapping/return, menus/tabs/selects/date entry, rem-based 200% text sizing, long titles, state examples and 390×420 keyboard-space emulation. Axe checks cover WCAG A/AA rules supported by the checker; computed control-border contrast is checked too. Passing these checks is not a complete screen-reader or physical-phone keyboard audit. Font requests are verified local to the app; bundled Manrope/Newsreader licences are retained under `docs/licenses/`.
 
 The dev/build/start scripts run configuration validation before launching Next; build/start load production env-file precedence. Next instrumentation also checks server runtime settings. Audit commands query the package advisory service and do not suppress reported vulnerabilities; see `STATUS.md` for known development-tooling findings.
 

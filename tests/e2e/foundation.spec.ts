@@ -21,7 +21,8 @@ for (const width of [320, 360, 390, 768, 1280, 1440]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
     expect(errors).toEqual([]);
-    await page.screenshot({ path: `docs/evidence/foundation-${width}.png`, fullPage: true });
+    await page.evaluate(() => document.fonts.ready);
+    await page.screenshot({ path: `docs/evidence/welcome-${width}.png`, fullPage: true });
   });
 }
 
@@ -35,4 +36,27 @@ test("keyboard skip link and unavailable route have a way home", async ({ page }
   expect(response?.status()).toBe(404);
   await page.getByRole("link", { name: "Return to Daylight" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Student life");
+});
+
+test("production rejects development fixtures and never links to them", async ({ page, request }) => {
+  for (const path of ["/dev/shell", "/dev/shell?fixture=true&demo=1"]) {
+    const response = await request.get(path);
+    expect(response.status()).toBe(404);
+    expect(await response.text()).not.toContain("Work through integration by parts");
+  }
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: /synthetic workspace/ })).toHaveCount(0);
+});
+
+test("sign-in explanation has focus containment and return", async ({ page }) => {
+  await page.goto("/");
+  const trigger = page.getByRole("button", { name: "About sign-in availability" });
+  await trigger.click();
+  await expect(page.getByRole("dialog", { name: "Sign-in is not available yet" })).toBeVisible();
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press(i % 2 ? "Shift+Tab" : "Tab");
+    expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
 });

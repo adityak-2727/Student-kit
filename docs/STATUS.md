@@ -1,13 +1,13 @@
 # Implementation status
 
-Current state: **Runnable application foundation complete, with one documented upstream development-tooling advisory.** The public entry point, strict TypeScript, lint/unit/browser checks, configuration preflight and IANA calendar utilities work. Google authentication, private persistence, encryption and the student workspace are not implemented or verified. No public deployment has been made.
+Current state: **Foundation and responsive visual system/application shell complete within their authorized scope.** A clearly labelled development-only workspace preview supports navigation, filtering, display states and temporary draft editing. Google authentication, private persistence, encryption, rewards and live student workflows are not implemented or verified. The upstream development-tooling advisory remains documented. No public deployment has been made.
 
-Next action: authorize Phase 2 to implement the visual system and responsive application shell. Do not start later phases without authorization.
+Next action: authorize Phase 3 to implement real Google authentication and encrypted database persistence. Do not start later phases without authorization.
 
 | Phase | Status | Evidence / blocker |
 | --- | --- | --- |
 | 1 Foundation | Complete within authorized scope | Fresh frozen install, type/lint/unit/build/browser checks pass; development audit finding remains visible below |
-| 2 Design system and shell | Not started | — |
+| 2 Design system and shell | Complete within authorized scope | Local fonts, Radix primitives, responsive shell, 18 development browser checks and 10 production browser checks; evidence below |
 | 3 Authentication and encrypted database | Not started | External configuration will be required |
 | 4 Onboarding, profile, avatar, domains | Not started | — |
 | 5 College study | Not started | — |
@@ -20,6 +20,43 @@ Next action: authorize Phase 2 to implement the visual system and responsive app
 | 12 Release verification and deployment readiness | Not started | Public launch requires explicit authorization |
 
 ## Update after each implementation phase
+
+### Phase 2 evidence — 14 October 2026
+
+Ref: `main`; commit subject: `Add responsive workspace shell and accessible controls`. Scope is a visual implementation; no real account is simulated and no provider/persistence check is claimed.
+
+Usable: the public welcome/sign-in availability surface has self-hosted Manrope/Newsreader typography and an accessible information dialog. In development, `/dev/shell` shows a labelled synthetic Today agenda with week navigation, direct date entry, domain filtering, sample source links, a separate inbox, fixed sample XP/streak context, desktop sidebar, compact tablet sidebar, phone bottom navigation and a persistent quick-add action. Study tabs, More/profile menus and display switches work. Unimplemented real destinations explain their availability without fake charts/friends. The temporary editing sheet validates input, retains errors, applies only to current memory, and resets on refresh. Completed sample schedule/domain fields are locked. No completion, XP celebration, login, server save or fake synchronization is implemented.
+
+Run/inspect: `npx --yes pnpm@12.11.2 dev`, then `http://127.0.0.1:3000/dev/shell`. No credentials or `.env.local` needed. The homepage links to the preview only in development. `pnpm start` intentionally provides the public page and returns 404 for the fixture route. The production gate runs on the server before dynamic fixture imports; fixtures also use `server-only`. No query parameter or auth-bypass flag can enable the route.
+
+Changed modules: shared UI primitives under `src/components/ui`, public branding/frame/sign-in information, shell navigation/agenda/editor/state examples and separate preview schema/server fixtures under `src/features/shell`, the gated route, design tokens/styles and local font imports. Added `playwright.shell.config.ts`, `test:shell`, axe checks, OFL licences and the pinned UI dependencies/lockfile. Next's regenerated `next-env.d.ts` is ignored instead of tracked; the existing startup/build/typegen commands create it. Setup, README, implementation map and decisions are synchronized. Product reward/privacy contracts remain unchanged.
+
+| Exact command / procedure | Actual outcome |
+| --- | --- |
+| `npm view` for Radix primitives, Lucide, Fontsource packages and axe checker | Stable versions/React peers and OFL-1.1 font licensing checked; exact installed versions and official documentation links in `DECISIONS.md` |
+| `npx --yes pnpm@12.11.2 install --frozen-lockfile` | Passed with strict engine/peer and supply-chain policies; no fresh-release exemption retained |
+| `npx --yes pnpm@12.11.2 typecheck` | Passed; Next route type generation and strict TypeScript |
+| `npx --yes pnpm@12.11.2 lint` | Passed after ref access was moved from render to event handlers |
+| `npx --yes pnpm@12.11.2 test:unit` | Passed: existing 23 configuration/timezone tests; those modules' behavior is preserved |
+| `npx --yes pnpm@12.11.2 build` | Passed; optimized production build and its TypeScript check |
+| `npx --yes pnpm@12.11.2 test:shell` | Passed: 18 Chromium checks against a dedicated development server on port 3100 |
+| `npx --yes pnpm@12.11.2 test:shell --grep 'editor validates|long titles|empty-state'` | Passed: three focused reruns after explicit Study-category labelling; a new scheduled Study draft remains general Study, with no implicit self-study classification |
+| `npx --yes pnpm@12.11.2 test:e2e` | Passed: 10 Chromium checks against its own production server on port 3000, including direct/query fixture 404s and no preview link in production |
+| Axe A/AA checks at 320, 360, 390, 768, 1024, 1280, 1440px; dialog validation state | Passed: no detected violations in the inspected shell states; not a complete accessibility certification |
+| Local font request and computed style/border-contrast checks | Passed: WOFF2 requests remain on app origin, Manrope renders, required control border has >=3:1 contrast; text contrast covered by axe |
+| Keyboard events for select typeahead, tabs, menus, popover, skip link, switches and dialogs | Passed: correct selection/dismissal, visible skip link above chrome, Tab/Shift+Tab containment and focus return, including removed-trigger fallback |
+| Reduced viewport/text/state checks | Passed: 390×420 keyboard-space emulation, 200% rem text size with 32px input text, 640×360 landscape, 160-character unbroken title, short-tablet navigation scroll and loading/error/offline/empty examples |
+| Refresh/storage/URL check for edited synthetic draft | Passed: no local/session storage entries, no draft in URL, refresh removes the temporary draft, no reward/saved-success message |
+| `npx --yes pnpm@12.11.2 audit:production` | Passed: no known vulnerabilities reported in production dependencies |
+| `npx --yes pnpm@12.11.2 audit` | Failed: the same one high development-only `braces` advisory has no patched release reported; not suppressed |
+
+Visual evidence: `docs/evidence/shell-{320,360,390,768,1024,1280,1440}.png`; phone viewport captures `shell-{320,360,390}-viewport.png`; `shell-editor-keyboard-space.png`, `shell-text-200.png`, `shell-landscape.png`; public page `welcome-{320,360,390,768,1280,1440}.png`. Opened/inspected the phone, tablet and desktop captures and editing/text-size states. Existing foundation screenshots are retained as historical evidence. Full-page captures include sticky chrome at the capture's viewport position; phone viewport captures show the actual visible framing.
+
+Independent read-only review found and resolved detached-trigger focus return, hidden-field validation for unscheduled drafts, a skip link behind mobile chrome and short-sidebar reachability. Added targeted regression checks. Initial keyboard select test sent typeahead before primitive focus settled; waits now assert selected-option focus. The date control now has an explicit accessible name. The first production test attempt correctly refused an earlier preview server on port 3000; that known local process was stopped before the successful run. Next's development badge was disabled after visual review showed it over phone navigation.
+
+Limits: native iOS/Android software keyboards, physical device gestures and assistive-technology announcements were **not run** (no connected phone/assistive-technology session); keyboard-space resizing, browser keyboard events, DOM semantics and axe scans are the verified evidence. The VisualViewport handler resizes/positions the phone editor, and its actions remain visible under the tested reduced space. Full device/integration hardening remains Phase 11. Real Google/Atlas/KMS/CSFLE and persisted owner isolation remain **not run — future Phase 3 work**, requiring implementation and private provider configuration. No paid resources or public hosting were created. The known dev linter advisory from Phase 1 remains open.
+
+Next: Phase 3, upon authorization. Implement the stable Google flow, active-account session/service authorization, encrypted repositories and native/KMS checks; finish independent code before reporting exact unavailable external setup.
 
 ### Phase 1 evidence — 14 October 2026
 
