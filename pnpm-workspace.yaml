@@ -4,4 +4,5 @@ engineStrict: true
 strictPeerDependencies: true
 verifyDepsBeforeRun: error
 allowBuilds:
+  mongodb-client-encryption@7.2.1: true
   unrs-resolver@1.12.2: true

@@ -10,8 +10,12 @@ try {
     parseIntegrationEnvironment(environment);
     console.info("Integration prerequisites are valid. Provider connections and encryption have not been tested.");
   } else {
-    parseRuntimeEnvironment(environment);
-    console.info("Foundation configuration is valid. Sign-in and database integration are not implemented yet.");
+    const runtime = parseRuntimeEnvironment(environment);
+    if (runtime.APP_MODE === "live" && process.argv.includes("--dependencies")) {
+      const { verifyAccountDependencies } = await import("../src/server/encryption/availability.ts");
+      await verifyAccountDependencies(parseIntegrationEnvironment(environment));
+    }
+    console.info(runtime.APP_MODE === "live" ? (process.argv.includes("--dependencies") ? "Live configuration, database indexes and key protection are available." : "Live configuration is valid. External connections are checked separately.") : "Public preview configuration is valid. Account integration is disabled.");
   }
 } catch (error) {
   console.error(error instanceof ConfigurationError ? error.message : "Configuration validation failed. Check local configuration privately.");

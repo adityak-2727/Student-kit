@@ -1,6 +1,6 @@
 # Setup and deployment runbook
 
-The public foundation and responsive visual shell are implemented. The shell's synthetic entry point is development-only. Authentication, encrypted database persistence, migrations, containers and deployment remain future work. Sections below distinguish commands that run now from later setup. Follow the twelve phases in `PHASES.md`; see `STATUS.md` for actual evidence.
+Google authentication, encrypted identity persistence, owner checks, revocation, migrations and verification commands are implemented. Real Google, Atlas, AWS KMS and Linux-container checks are blocked by missing setup; local MongoDB tests are separate evidence. The public preview runs without credentials. Follow `PHASES.md`; see `STATUS.md` for actual results.
 
 ## Run the current build
 
@@ -37,9 +37,11 @@ pnpm start
 
 The dev/build/start scripts run configuration validation before launching Next; build/start load production env-file precedence. Next instrumentation also checks server runtime settings. Audit commands query the package advisory service and do not suppress reported vulnerabilities; see `STATUS.md` for known development-tooling findings.
 
-`pnpm config:check --integration` checks future prerequisite syntax and returns failure for missing or placeholder values. It never connects to Google, MongoDB, or KMS. Diagnostics print setting names and controlled messages, not submitted values. Runtime startup rejects unsupported modes, unsafe origins, and test-auth bypasses. The foundation production build intentionally requires no future secrets; once live services exist, production startup must enforce the complete integration/KMS checks too.
+`pnpm config:check --integration` checks syntax, not connectivity. `APP_MODE=live` makes complete integration validation mandatory at startup/build. Production live mode requires HTTPS/AWS KMS and rejects local wrapping keys. Test-auth bypass is rejected in every mode. `APP_ORIGIN` is canonicalized; optional `NEXTAUTH_URL` must resolve to the same origin. Restart after configuration changes. No request forwarding header determines callbacks.
 
-`GET /api/v1/health` returns `{ "data": { "status": "ok" } }` with `Cache-Control: no-store`. It proves process liveness only. There are no migration, seed, readiness, or integration-test commands yet; they will be added with real implementations rather than placeholder success.
+`pnpm start` checks live database migrations/indexes and key wrapping/decryption **before launching Next**. Production Node instrumentation also checks these dependencies. The probe creates one temporary wrapped key, tests randomized encryption/decryption in memory, and deletes it. No account content is written. If cleanup is interrupted, maintain only `startup-probe:` key aliases; never remove retained user keys. Public `foundation` mode exposes no account services and requires no external dependencies.
+
+`GET /api/v1/health` returns `{ "data": { "status": "ok" } }` with no-store caching. It proves process liveness only. Private/auth responses are private/no-store. `/app/today` redirects signed-out visitors to `/signin`; authenticated accounts see an account connection handoff until onboarding arrives. Real accounts never receive synthetic schedules or scores.
 
 ## 1. Establish a compatible baseline
 
@@ -79,7 +81,7 @@ Local master keys are development/test only. Production must fail closed when KM
 
 ## 5. Run the implemented commands
 
-The following database commands are a future contract, **not runnable yet**:
+The implemented migration command installs validators, unique indexes and a migration ID/checksum. Use a separate migration identity, then restore the restricted runtime URI before starting:
 
 ```text
 pnpm install --frozen-lockfile
@@ -87,13 +89,19 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Future database/provider verification requires a selected non-production environment. Current lint/type/unit/build/browser scripts already run; `db:migrate` and `test:integration` do not exist yet:
+Local integration tests start and stop their own loopback MongoDB replica set. Install MongoDB Community and put `mongod` on PATH (Windows default: `C:\Program Files\MongoDB\Server\8.2\bin\mongod.exe`) or set `MONGOD_BINARY`. They never consume an existing MongoDB URI, drop databases, or modify an existing service. Test storage is retained under ignored `test-results/mongo-*`; it contains synthetic records and wrapped test keys. Missing mongod is a failure, not a silent skip. These tests do not prove Google, Atlas, network TLS, KMS or Linux-container behavior.
+
+`pnpm test:auth` starts a separate development server on port 3101 with synthetic provider settings and no valid identity/session fixture. It tests actual NextAuth protocol routes and simulated network/429 retry states; it never performs successful Google login. Stop other Daylight development servers before running it or `test:shell`; Next allows only one development server for this working tree. Run browser suites sequentially because they share `test-results`.
+
+Implemented verification commands:
 
 ```text
 pnpm lint
 pnpm typecheck
 pnpm test:unit
 pnpm test:integration
+pnpm test:auth
+pnpm encryption:runtime
 pnpm exec playwright install
 pnpm test:e2e
 pnpm build
@@ -101,6 +109,26 @@ pnpm start
 ```
 
 Scripts must return failure for unmet prerequisites or failed checks. Seed commands, when added, refuse production by default. Browser tests cover responsive layouts, authorization, forms, completion flows, and accessibility; Google staging verification remains an actual provider flow. Record real results rather than marking skipped tests passed.
+
+## Enable your development account integration
+
+1. In Google Cloud's Google Auth Platform, configure Branding/Audience for a testing app and add your test Google account. In Clients, create a **Web application** OAuth client. Use only `openid email profile`. Register `http://localhost:3000/api/auth/callback/google`, matching `APP_ORIGIN=http://localhost:3000`, and use that hostname in your browser. Copy the client ID/secret privately into `.env.local`. See [Google's web client setup](https://developers.google.com/identity/protocols/oauth2/web-server) and [NextAuth v4 Google](https://next-auth.js.org/providers/google). Do not add API scopes or offline access.
+2. Use a dedicated Atlas development database and separate key-vault database, for example `daylight_dev` and `daylight_dev_keys.__keyVault`. Register only your current developer IP or approved private network; keep validated TLS and Atlas storage encryption. Put the SRV URI in `.env.local`. Provision paid resources only after a separate decision by the owner.
+3. Run `pnpm config:keys`. It copies `.env.example` to ignored `.env.local` if absent and replaces only missing placeholder `AUTH_SECRET`, `IDENTITY_HMAC_KEY_BASE64` (32 random bytes), and local wrapping key (96 random bytes), without printing values. Existing real values are retained. Fill Google/Atlas settings privately. Keep keys across restarts; do not regenerate them or change HMAC version on existing accounts. Restrict the file to your OS account; POSIX mode 0600 is requested, while Windows ACL protection must be confirmed separately. After a build, `pnpm security:client-secrets` scans static artifacts for configured secret byte values and fails on a match; it is a bounded check, not a full security audit.
+4. Run `pnpm config:check --integration`, then `pnpm db:migrate` using the migration URI. Restore the runtime URI. Set `APP_MODE=live`, run `pnpm dev`, and open `http://localhost:3000/signin`. Production builds reject local wrapping keys; use development for this local-key workflow.
+5. Confirm actual Google consent, `/app/today`, refresh, sign-out and re-entry to the same internal account. Test a second account and logout-all. Record real outcomes privately; never screenshot emails, subject IDs, cookies, keys or callback codes. Cancelled consent/provider failure must return retry guidance. Local sign-in does not replace the required staging check.
+
+Least privilege: the serving Atlas identity needs find/insert/update on users, domains and rate buckets; read of migration metadata and collection/index metadata; find/insert/remove on its key vault (startup probe cleanup and later deletion). It does not need `collMod`, index creation or database dropping. Use a separate migration identity for createCollection/collMod/createIndex plus migration metadata writes. Validate exact custom-role privileges in your Atlas environment; do not grant project admin or broad cross-database access. Restrict ingress Host to the configured origin, strip untrusted forwarding headers and add host IP/bot throttling. Signed-browser rate buckets default to 10/minute and a separate deployment safety ceiling to 300/minute, adjustable through `.env.example`; they do not replace ingress abuse controls.
+
+## Verify AWS KMS and the intended container
+
+Use an authorized private staging environment with its own Google client, Atlas database/vault and HTTPS origin. Set `ENCRYPTION_PROVIDER=aws`, matching `KMS_AWS_REGION` and key ARN. Give a scoped workload role `kms:Encrypt` and `kms:Decrypt` on that key; rewrap/rotation permissions require a separate operational decision. MongoDB refreshes credentials through the official AWS SDK provider chain (role/web identity/profile); no AWS credentials are persisted in MongoDB. Do not expose them through `NEXT_PUBLIC_`. Run migrations, then production build/start with the appropriate staging secret store. Missing/denied KMS access must prevent live startup and sign-in; never switch production to local keys as a fallback.
+
+`Dockerfile.encryption` is a Node 24.13 Debian/glibc native-loading probe, not a deployable release image. With Docker installed, run `docker build -f Dockerfile.encryption -t daylight-encryption-probe .` and `docker run --rm daylight-encryption-probe`. No Docker was available in the current workspace; this gate remains unverified. Actual encrypt/decrypt/key-failure checks must also run in the final host image in staging.
+
+For independent raw BSON inspection, use a **dedicated** configured database named `daylight_verify_<suffix>` with vault `daylight_verify_<suffix>_keys.__keyVault`, then run `pnpm encryption:verify`. It fails for all other namespaces, creates one synthetic record/key, reads with no autoEncryption client, requires encrypted BSON subtype 6, decrypts, and removes only those generated IDs. Run in AWS mode in staging to prove KMS; local mode is not AWS evidence. Do not run with real account databases. This CLI still requires complete environment validation, including Google settings, but does not contact Google.
+
+Key vault backup and matching external wrapping key access must accompany application backups. Do not change the HMAC key/version without the planned dual-read lookup migration; changing it directly would create duplicate identities. Wrapping-key rewrap, retained-data recovery, deletion restore hygiene and final host packaging remain release gates in Phase 12. No public deployment is authorized by these commands.
 
 ## 6. Deploy and prove recovery
 

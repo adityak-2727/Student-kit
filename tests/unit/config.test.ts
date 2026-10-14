@@ -17,7 +17,7 @@ describe("foundation configuration", () => {
   it.each(["true", "1"])("rejects an authentication bypass (%s)", (value) => {
     expect(() => parseRuntimeEnvironment({ ENABLE_TEST_AUTH: value, NODE_ENV: "production" })).toThrow(ConfigurationError);
   });
-  it.each(["live", "demo"])("rejects unavailable %s mode", (value) => {
+  it.each(["live", "demo"])("rejects unconfigured/unsupported %s mode", (value) => {
     expect(() => parseRuntimeEnvironment({ APP_MODE: value })).toThrow(ConfigurationError);
   });
   it.each(["http://student.invalid", "https://student.invalid/path", "https://user:secret@student.invalid", "https://student.invalid/?token=secret"])("rejects unsafe origin %s", (origin) => {
@@ -26,6 +26,7 @@ describe("foundation configuration", () => {
   it("allows HTTPS deployment and local HTTP origins", () => {
     expect(parseRuntimeEnvironment({ APP_ORIGIN: "https://student.invalid" }).APP_ORIGIN).toBe("https://student.invalid");
     expect(parseRuntimeEnvironment({ APP_ORIGIN: "http://127.0.0.1:3000" }).APP_ORIGIN).toBe("http://127.0.0.1:3000");
+    expect(parseRuntimeEnvironment({ APP_ORIGIN: "https://STUDENT.invalid:443/" }).APP_ORIGIN).toBe("https://student.invalid");
   });
 });
 
@@ -39,7 +40,7 @@ describe("integration prerequisites", () => {
     expect(() => parseIntegrationEnvironment({ ...fixture, LOCAL_CSFLE_MASTER_KEY_BASE64: Buffer.alloc(32).toString("base64") })).toThrow(ConfigurationError);
   });
   it("forbids production local keys", () => {
-    expect(() => parseIntegrationEnvironment({ ...fixture, NODE_ENV: "production" })).toThrow(/production requires AWS KMS/);
+    expect(() => parseIntegrationEnvironment({ ...fixture, NODE_ENV: "production", APP_ORIGIN: "https://student.invalid" })).toThrow(/production requires AWS KMS/);
   });
   it("requires KMS settings for AWS", () => {
     expect(() => parseIntegrationEnvironment({ ...fixture, ENCRYPTION_PROVIDER: "aws" })).toThrow(/KMS_AWS_REGION/);
@@ -57,5 +58,18 @@ describe("integration prerequisites", () => {
       return;
     }
     throw new Error("Expected invalid configuration to fail.");
+  });
+  it("validates live mode at startup and enforces production HTTPS/KMS", () => {
+    expect(parseRuntimeEnvironment({ ...fixture, APP_MODE: "live" }).APP_MODE).toBe("live");
+    expect(() => parseRuntimeEnvironment({ ...fixture, APP_MODE: "live", AUTH_GOOGLE_SECRET: "" })).toThrow(ConfigurationError);
+    const production = { ...fixture, NODE_ENV: "production", APP_MODE: "live", APP_ORIGIN: "https://student.invalid", ENCRYPTION_PROVIDER: "aws", KMS_AWS_REGION: "ap-south-1", KMS_AWS_KEY_ARN: "arn:aws:kms:ap-south-1:123456789012:key/synthetic-key" };
+    expect(parseRuntimeEnvironment(production).APP_MODE).toBe("live");
+    expect(() => parseRuntimeEnvironment({ ...production, APP_ORIGIN: "http://localhost:3000" })).toThrow(/HTTPS/);
+    expect(() => parseRuntimeEnvironment({ ...production, KMS_AWS_REGION: "us-east-1" })).toThrow(/KMS_AWS_REGION/);
+    expect(() => parseRuntimeEnvironment({ ...production, NEXTAUTH_URL: "https://other.invalid" })).toThrow(/NEXTAUTH_URL/);
+    expect(() => parseIntegrationEnvironment({ ...fixture, MONGODB_KEY_VAULT_NAMESPACE: "daylight_test.__keyVault" })).toThrow(/separate database/);
+  });
+  it.each(["mongodb+srv://synthetic.invalid/?TLS=false", "mongodb+srv://synthetic.invalid/?tls=true&tls=false", "mongodb+srv://synthetic.invalid/?tlsAllowInvalidHostnames=TRUE"])("rejects alternate insecure flags %s", uri => {
+    expect(() => parseIntegrationEnvironment({ ...fixture, MONGODB_URI: uri })).toThrow(/MONGODB_URI/);
   });
 });

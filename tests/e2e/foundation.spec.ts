@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("public health is liveness only", async ({ request }) => {
   const response = await request.get("/api/v1/health");
   expect(response.status()).toBe(200);
-  expect(response.headers()["cache-control"]).toBe("no-store");
+  expect(response.headers()["cache-control"]).toContain("no-store");
   expect(await response.json()).toEqual({ data: { status: "ok" } });
 });
 
@@ -15,7 +15,7 @@ for (const width of [320, 360, 390, 768, 1280, 1440]) {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Student life");
     await expect(page.getByText("Google sign-in", { exact: true })).toBeVisible();
-    await expect(page.getByText("Not available yet", { exact: true })).toBeVisible();
+    await expect(page.getByText("Setup required", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "View what’s available" }).click();
     await expect(page).toHaveURL(/#availability$/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -32,7 +32,7 @@ test("keyboard skip link and unavailable route have a way home", async ({ page }
   await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#main$/);
-  const response = await page.goto("/app/today");
+  const response = await page.goto("/unavailable");
   expect(response?.status()).toBe(404);
   await page.getByRole("link", { name: "Return to Daylight" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Student life");

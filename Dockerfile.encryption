@@ -1,0 +1,7 @@
+# Native compatibility probe, not a release/deployment image.
+FROM node:24.13.0-bookworm-slim
+WORKDIR /probe
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN npx --yes pnpm@12.11.2 install --prod --frozen-lockfile
+COPY scripts/native-encryption-runtime.mjs scripts/native-encryption-runtime.mjs
+CMD ["node", "scripts/native-encryption-runtime.mjs"]

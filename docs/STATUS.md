@@ -1,14 +1,14 @@
 # Implementation status
 
-Current state: **Foundation and responsive visual system/application shell complete within their authorized scope.** A clearly labelled development-only workspace preview supports navigation, filtering, display states and temporary draft editing. Google authentication, private persistence, encryption, rewards and live student workflows are not implemented or verified. The upstream development-tooling advisory remains documented. No public deployment has been made.
+Current state: **Google authentication and encrypted account foundation implemented; mandatory live exit gates BLOCKED by external setup.** The public preview and responsive synthetic shell remain usable. Local replica-set encryption, ownership, revocation and concurrent provisioning are verified; real Google/Atlas/AWS KMS/Linux-container verification is unavailable. Onboarding, study workflows and rewards remain future work. No public deployment or paid resource has been created.
 
-Next action: authorize Phase 3 to implement real Google authentication and encrypted database persistence. Do not start later phases without authorization.
+Next action: configure Google, restricted Atlas and AWS KMS privately using SETUP-AND-DEPLOY.md, install/enable Docker for the native-container probe, then finish Phase 3's live gates. Phase 4 is onboarding/profile/avatar/domain selection after those dependencies pass and the user authorizes it.
 
 | Phase | Status | Evidence / blocker |
 | --- | --- | --- |
 | 1 Foundation | Complete within authorized scope | Fresh frozen install, type/lint/unit/build/browser checks pass; development audit finding remains visible below |
 | 2 Design system and shell | Complete within authorized scope | Local fonts, Radix primitives, responsive shell, 18 development browser checks and 10 production browser checks; evidence below |
-| 3 Authentication and encrypted database | Not started | External configuration will be required |
+| 3 Authentication and encrypted database | Code/local checks delivered; live gates BLOCKED | User confirmed no Google/Atlas/KMS setup; Docker unavailable; evidence below |
 | 4 Onboarding, profile, avatar, domains | Not started | — |
 | 5 College study | Not started | — |
 | 6 Self-study planner | Not started | — |
@@ -20,6 +20,46 @@ Next action: authorize Phase 3 to implement real Google authentication and encry
 | 12 Release verification and deployment readiness | Not started | Public launch requires explicit authorization |
 
 ## Update after each implementation phase
+
+### Phase 3 evidence — 14 October 2026
+
+Ref: `main`; commit subject: `Add Google sign-in and encrypted account storage`. This is an implemented integration with local evidence, **not** a claim of verified Google login or production readiness. The user confirmed no external setup exists yet.
+
+Usable now: `/signin` has responsive setup/provider-error states; public preview mode works without accounts and does not show a fake login button. After private configuration, live mode uses real NextAuth Google OIDC, validated issuer/subject and verified email, a versioned HMAC lookup, per-user official randomized CSFLE, minimal sessions, owner-scoped `/api/v1/me`, session-version logout-all and library-managed sign-out. `/app/today` requires a valid active account and shows an honest account handoff, without synthetic student data. Discovery/sharing stay off; four built-in domain reservations stay disabled pending onboarding. No sign-in action awards XP or streak credit.
+
+Implementation: stable NextAuth 4.24.15, MongoDB 7.7.0, mongodb-client-encryption 7.2.1 and AWS SDK credential-providers 3.1148.0 are pinned with the lockfile. Server-only modules separate auth, services, repositories, pooling, envelope encryption, indexes/migrations and HTTP policy. Identity payloads bind owner/document/kind/schema; no plaintext name/email/sub is duplicated. Collection validators reject plaintext payloads; repository enforces BSON subtype 6. Unique identity/key/domain indexes and retry-safe provisioning withstand concurrent requests. Actual migration-definition checksums are recorded and enforced.
+
+Security behavior: canonical fixed origin/callback destinations; only minimal Google scopes, state/PKCE/nonce; no stored provider tokens or email linkage. Session/account versions are checked at data access. Private/auth HTML and JSON are no-store with nonce script CSP, no-referrer and sanitized errors. POST bodies are capped while streaming; Origin/content-type and library CSRF protect mutations. OAuth query overrides are refused. Signed browser limiter identities and shared Mongo windows apply per-browser/deployment limits; ingress bot/IP controls remain a host requirement. Production rejects local keys/bypasses and checks migrated DB plus fresh-context key wrapping/decryption before the documented server command opens a port. KMS failure has no local-key fallback.
+
+Local configuration: `pnpm config:keys` prepared three independent random secrets directly in ignored `.env.local`, printed no values, and left `APP_MODE=foundation`. Google and MongoDB settings remain placeholders. Existing non-placeholder secrets are preserved on rerun. Never commit or display that file. The build was checked against those configured values; no matches in static browser artifacts. Native Windows ACL setup verified disabled inheritance and access for the current user, SYSTEM and Administrators only.
+
+Run: `npx --yes pnpm@12.11.2 dev`, then `http://127.0.0.1:3000/signin` for setup status or `/dev/shell` for labelled layout fixtures. Exact private Google/Atlas/KMS steps, migration privileges, probe cleanup and key retention are in SETUP-AND-DEPLOY.md. Local integration tests own a temporary loopback MongoDB replica set under ignored `test-results/mongo-*`; no existing Mongo service/production URI/database is used or dropped. Test Mongo transport is intentionally local and unencrypted; **it is not Atlas/TLS evidence**.
+
+| Exact command / procedure | Actual outcome |
+| --- | --- |
+| `npm view next-auth version peerDependencies dist-tags`; Mongo driver/native engines/peers; official v4/Mongo/Next docs | Verified stable supported choices; v5 beta avoided; sources and exceptions documented in DECISIONS.md |
+| `npx --yes pnpm@12.11.2 install --frozen-lockfile` | Passed; exact native install allowance, strict peers/engine, no fresh-release exception retained |
+| `npx --yes pnpm@12.11.2 typecheck` | Passed strict TypeScript and route generation |
+| `npx --yes pnpm@12.11.2 lint` | Passed with zero warnings |
+| `npx --yes pnpm@12.11.2 test:unit` | Passed 41 tests: existing time/config contracts, Google claims/HMAC, minimal/revoked sessions, bounded requests, signed limiter, confirmed HTTP sign-out, and actual unsafe-production command preflight |
+| `npx --yes pnpm@12.11.2 test:integration` | Passed 12 tests against real isolated MongoDB 8.2 replica set: migration repeat/checksum, fresh key probe, raw randomized ciphertext, fresh request persistence, 8 concurrent first logins, four disabled domain reservations, owner denial/revocation, binding substitution, tampering/wrong/missing keys without overwrite, plaintext DB rejection, interrupted provisioning/deleting status, shared rate windows and transaction rollback |
+| `npx --yes pnpm@12.11.2 encryption:runtime` | Passed native loading: libmongocrypt 1.20.1, Node 24.13.0, Windows x64; encryption/storage behavior verified separately above |
+| `npx --yes pnpm@12.11.2 build` | Passed Node/dynamic production build, including real auth/protected routes; public foundation mode, no live provider claim |
+| `npx --yes pnpm@12.11.2 security:client-secrets` | Passed: 27 static build files checked against three configured private key values, zero matches; bounded evidence only |
+| `npx --yes pnpm@12.11.2 test:e2e` | Passed 18 production browser checks: six login/welcome widths, axe, signed-out API/page protection, mutation owner spoof/Origin rejection, no-store, fresh script nonces, safe error copy, keyboard and fixture isolation |
+| `npx --yes pnpm@12.11.2 test:auth` | Passed four browser/protocol checks using synthetic settings only: installed NextAuth Google/canonical URLs/no session, HttpOnly CSRF/limiter cookies, forbidden overrides/origins/bodies, CSRF sign-out and clearing an invalid cookie, simulated 429/offline retry without false success |
+| `npx --yes pnpm@12.11.2 test:shell` | Passed 18 regression checks; focused `test:shell --grep '200%'` also passed after ensuring hydration before changing root styles. Covers accessibility, focus, mobile editor, reduced motion, local fonts and fixture behavior under the new CSP |
+| `npx --yes pnpm@12.11.2 config:check --integration` | Expected exit 1: Google client ID/secret and Atlas URI are unconfigured; values are not printed |
+| `npx --yes pnpm@12.11.2 encryption:verify` | Expected prerequisite failure with no DB connection; Node strip-only parameter-property error found first and corrected with erasable class fields / compiler enforcement |
+| `npx --yes pnpm@12.11.2 db:migrate` | Expected exit 1 while integration settings are missing; no fake migration success or raw credential/database error printed |
+| `npx --yes pnpm@12.11.2 audit --prod --audit-level high` | Passed: no reported production vulnerabilities |
+| `npx --yes pnpm@12.11.2 audit --audit-level high` | Fails on the previously documented dev-only braces advisory; no patch/suppression, unchanged path |
+
+Screenshots: `docs/evidence/signin-{320,360,390,768,1280,1440}.png` (disabled setup plus sanitized OAuth error), `signin-configured-390.png` (synthetic provider configuration only), `signin-retry-390.png` (simulated rate-limit failure). Public welcome screenshots refreshed. Visual inspection found readable wrapping, reachable actions and no clipping; axes/overflow checks pass. Physical phone keyboards, screen-reader announcement testing and actual account-state screenshots remain later/manual work. No real personal data/codes/cookies/keys appear in screenshots.
+
+Corrections during verification: type checks found driver Binary/collection/test-callback type mismatches; corrected without casts weakening production contracts. Existing dev server blocked isolated ports/Next dev lock; stopped only the verified workspace Next process. Browser tests initially matched Next's empty route-announcer alert and assumed a CSRF/session cookie would be reissued when already present/absent; scoped application alerts and checked actual cookie state, including an explicitly invalid cookie. Independent read-only security review found global low throttling, OAuth query overrides, buffered body-size limits, sign-out false-success behavior and noncanonical origins; all were corrected and the follow-up found no material remaining issue. The expected generic authentication log during invalid-cookie rejection contains no token/provider metadata.
+
+Mandatory **not run — BLOCKED**: real Google consent/sign-in/out/re-entry/refresh with durable staging identity; Atlas restricted-network TLS persistence/raw ciphertext; AWS KMS permission/failure behavior in production mode; intended Linux/container native encrypt/decrypt and final package behavior. Missing prerequisites: Google Web OAuth client/consent/test account, Atlas environment/restricted credentials/networking, AWS KMS key/workload permissions, Docker/runtime and an authorized private staging target. Local CSFLE/HTTP fixture success does not pass any of these gates. HMAC dual-read rotation, retained-key rewrap/recovery and backup/deletion restore exercises remain documented release work. Phase 3 remains incomplete until its live gates pass; Phase 4 has not started.
 
 ### Phase 2 evidence — 14 October 2026
 

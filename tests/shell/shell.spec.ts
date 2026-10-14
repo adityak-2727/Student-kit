@@ -138,10 +138,11 @@ test("long titles, landscape, reduced motion, and loading/error/empty states ref
 test("200% text size still reflows and preserves the editor action", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dev/shell");
+  await page.getByRole("button", { name: "Add task to preview" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible(); // Ensure hydration before changing root DOM styles.
   // Text is sized in rem, so doubling the root size also scales portalled controls.
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.getByRole("button", { name: "Add task to preview" }).click();
   expect(await page.getByLabel("Task title").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBe(32);
   await expect(page.getByRole("button", { name: "Apply to preview" })).toBeInViewport();
   await page.screenshot({ path: "docs/evidence/shell-text-200.png" });
